@@ -77,6 +77,8 @@ class Solver():
         self.D2y = jnp.kron(I_, D2_)
         self.DxDy = jnp.kron(D_, D_)
 
+        self.invI = jnp.linalg.inv(self.I)
+
     def init_boundify(self):
         A = np.ones((self.N**2,self.N**2))
         B = np.zeros((self.N**2,self.N**2))
@@ -119,12 +121,12 @@ class Solver():
         k = self.I @ k_cheby
         kx = self.Dx @ k_cheby
         ky = self.Dy @ k_cheby
-        k_mat = np.diag(k)
-        kx_mat = np.diag(kx)
-        ky_mat = np.diag(ky)
+        k_mat = jnp.diag(k)
+        kx_mat = jnp.diag(kx)
+        ky_mat = jnp.diag(ky)
 
         L = self.boundify(kx_mat @ self.Dx + ky_mat @ self.Dy + k_mat @ (self.D2x + self.D2y))
-        sol = np.linalg.inv(L) @ dirichlet.flatten()
+        sol = jnp.linalg.inv(L) @ dirichlet.flatten()
 
         result = {"T":self.I @ sol, "dx T":self.Dx @ sol, "dy T":  self.Dy @ sol, "k": k}
         return result
