@@ -1,4 +1,6 @@
 import jax
+from jax import config
+config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
@@ -13,6 +15,7 @@ class Solver():
 
 
         self.I = None
+        self.invI = None
         self.Dx = None
         self.Dy = None
         self.D2x = None
@@ -70,6 +73,10 @@ class Solver():
         ###  Use Kronecker Products
         ###
 
+        I_ = jnp.array(I_, dtype = "float64")
+        D_ = jnp.array(D_, dtype = "float64")
+        D2_ = jnp.array(D2_, dtype = "float64")
+
         self.I = jnp.kron(I_, I_)
         self.Dx = jnp.kron(D_, I_)
         self.Dy = jnp.kron(I_, D_)
@@ -107,17 +114,13 @@ class Solver():
                 A[i,:] = np.zeros((self.N*self.N))
                 B[i,:] = self.I[i, :]
 
-        self.A = jnp.array(A)
-        self.B = jnp.array(B)
+        self.A = jnp.array(A, dtype = "float64")
+        self.B = jnp.array(B, dtype = "float64")
 
     def boundify(self, operator):
         return operator * self.A + self.B
-
-    def solve(self, k_cheby, dirichlet):
-        """
-        shape k_cheby = (N**2,) (flattened chebyshev coefficients)
-        shape dirichelt = (N, N) (physical space)
-        """
+    
+    def calc_L(self, k_cheby):
         k = self.I @ k_cheby
         kx = self.Dx @ k_cheby
         ky = self.Dy @ k_cheby
@@ -126,6 +129,24 @@ class Solver():
         ky_mat = jnp.diag(ky)
 
         L = self.boundify(kx_mat @ self.Dx + ky_mat @ self.Dy + k_mat @ (self.D2x + self.D2y))
+
+        return L
+
+    def solve(self, k_cheby, dirichlet):
+        """
+        shape k_cheby = (N**2,) (flattened chebyshev coefficients)
+        shape dirichelt = (N, N) (physical space)
+        """
+
+        k = self.I @ k_cheby
+        kx = self.Dx @ k_cheby
+        ky = self.Dy @ k_cheby
+        k_mat = jnp.diag(k)
+        kx_mat = jnp.diag(kx)
+        ky_mat = jnp.diag(ky)
+
+        L = self.boundify(kx_mat @ self.Dx + ky_mat @ self.Dy + k_mat @ (self.D2x + self.D2y))
+       
         sol = jnp.linalg.inv(L) @ dirichlet.flatten()
 
         result = {"T":self.I @ sol, "dx T":self.Dx @ sol, "dy T":  self.Dy @ sol, "k": k}
