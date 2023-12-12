@@ -1,3 +1,7 @@
+###################################################
+# In this script we build a finite difference solver for the
+# heat equation in two dimensions.
+###################################################
 import jax
 from jax import config
 config.update("jax_enable_x64", True)
@@ -27,6 +31,9 @@ class Solver():
         self.init_boundify()
 
     def init_differentials(self):
+        """
+        We initialise differentiation matrices.
+        """
         D = np.zeros(shape = (self.N, self.N))
         for i in range(1, self.N - 1):
             D[i, i - 1] = -1 
@@ -46,6 +53,9 @@ class Solver():
         self.Dx = jnp.array(np.kron(D, np.identity(self.N)))
 
     def init_boundify(self):
+        """
+        Initialises the ability to allow for dirichlet boundaries.
+        """
         A = np.ones((self.N**2,self.N**2))
         B = np.zeros((self.N**2,self.N**2))
 
@@ -77,9 +87,15 @@ class Solver():
         self.B = jnp.array(B)
 
     def boundify(self, operator):
+        """
+        Changes a differential operator to allow for dirichlet boundaries.
+        """
         return operator * self.A + self.B
 
     def solve(self, k, dirichlet):
+        """
+        Solves the heat equation for given conductivity k and dirichlet boundaries.
+        """
         k_mat = jnp.diag(k.flatten())
         op = self.Dx@ k_mat @self.Dx + self.Dy@ k_mat@self.Dy
         op = self.boundify(op)

@@ -1,3 +1,8 @@
+####################################################
+# In this script, we implement the chebyshev
+# pseudo-spectral method in two dimensions
+####################################################
+
 import jax
 from jax import config
 config.update("jax_enable_x64", True)
@@ -7,13 +12,17 @@ import numpy as np
 
 class Solver():
     def __init__(self, N = 50):
+        """
+        Params:
+            N       : number of gridpoints in each dimensions
+        """
         self.N = N
 
-        self.grid = np.cos((2*np.arange(N) + 1)*np.pi/2/N)
+        self.grid = np.cos((2*np.arange(N) + 1)*np.pi/2/N)  # create a coordinate grid
 
-        self.yy, self.xx = np.meshgrid(self.grid, self.grid)
+        self.yy, self.xx = np.meshgrid(self.grid, self.grid)  # create x and y coordinate functions
 
-
+        # prepare storing of matrices
         self.I = None
         self.invI = None
         self.Dx = None
@@ -28,7 +37,10 @@ class Solver():
         self.init_boundify()
 
     def init_differentials(self):
-        
+        """
+        The differentiation-matrices are initialised. They take in an array of chebysehv coefficients and produce the
+        desired output (identity, differentiation, etc.) in physical space.
+        """
 
         #
         #  Unity Matrix
@@ -87,6 +99,10 @@ class Solver():
         self.invI = jnp.linalg.inv(self.I)
 
     def init_boundify(self):
+        """
+        The differential operator constructed with above differentiation matrices has to be adapted
+        such that it can handle dirichlet boundary conditions.
+        """
         A = np.ones((self.N**2,self.N**2))
         B = np.zeros((self.N**2,self.N**2))
 
@@ -118,9 +134,15 @@ class Solver():
         self.B = jnp.array(B, dtype = "float64")
 
     def boundify(self, operator):
+        """
+        Changes a differential operator to allow for boundary conditions
+        """
         return operator * self.A + self.B
     
     def calc_L(self, k_cheby):
+        """
+        Calculates the differential operator L for a given conductivity k.
+        """
         k = self.I @ k_cheby
         kx = self.Dx @ k_cheby
         ky = self.Dy @ k_cheby
@@ -134,8 +156,13 @@ class Solver():
 
     def solve(self, k_cheby, dirichlet):
         """
-        shape k_cheby = (N**2,) (flattened chebyshev coefficients)
-        shape dirichelt = (N, N) (physical space)
+        Solves the heat equation.
+        Params:
+            k_cheby     : flattened chebyshev coefficients shape = (N**2,) 
+            dirichlet   : dirichlet boundaryconditions shape = (N, N) (physical space)
+
+        Returns:
+            the solved quantities: temperature, gradient of temperature and the used conductivity k.
         """
 
         k = self.I @ k_cheby
